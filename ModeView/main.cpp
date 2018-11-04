@@ -2,7 +2,7 @@
 #include <cstdlib>
 
 #include "esUtil.h"
-#include "LoadFile.h"
+#include "scene.h"
 #include "Math.h"
 
 extern "C" {int esMain(ESContext *esContext);}
@@ -21,7 +21,7 @@ typedef struct {
 	GLint u_mvpMatrix;
 
 	light_t *light;
-	scene_t *scene;
+	object_t *scene;
 
 	// shadowmap
 	GLuint shadowProgram;
@@ -29,9 +29,11 @@ typedef struct {
 	GLuint shadowTex;
 } UserData;
 
-GLfloat tx = -50.0f, ty = 0.0f, tz = 0.0f;
+
+
+GLfloat tx = 0.0f, ty = 0.0f, tz = 0.0f;
 GLfloat sx = 1.0f, sy = 1.0f, sz = 1.0f;
-GLfloat angle = 30.0f, x = 0.0f, y = 0.0f, z = 0.0f;
+GLfloat angle = 0.0f, x = 0.0f, y = 0.0f, z = 0.0f;
 float posX = 0.0f, posY = 0.0f, posZ = 500.0f;
 float lookAtX = 0.0f, lookAtY = 0.0f, lookAtZ = 1.0f;
 float upX = 0.0f, upY = 1.0f, upZ = 0.0f;
@@ -47,11 +49,11 @@ ESMatrix GetMatrix(ESContext *esContext)
 	esPerspective(&projection, 60.0f, aspect, 1.0f, 100.0f);
 
 	esMatrixLoadIdentity(&model);
-	esTranslate(&model, tx, -1.0f, 0.0f);
+	esTranslate(&model, tx, 0.0f, 0.0f);
+	esScale(&model, 1.0f, 1.0f, 1.0f);
 	esRotate(&model, angle, 0.0, 1.0f, 0.0);
-	esScale(&model, 0.02f, 0.02f, 0.02f);
 
-	esMatrixLookAt(&view, 0.0f, 0.0f, 50.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f);
+	esMatrixLookAt(&view, 0.0f, 0.0f, 50.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
 	esMatrixMultiply(&modelview, &model, &view);
 	esMatrixMultiply(&mvpMatrix, &modelview, &projection);
@@ -63,8 +65,8 @@ int Init(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
 
-	const char *filename = "C:\\Users\\lang\\Desktop\\text.obj";
-	scene_t *scene = LoadObject(filename);
+	const char *filename = "text.obj";
+	object_t *scene = LoadObject(filename);
 	glGenVertexArrays(1, &userData->vao);
 	glBindVertexArray(userData->vao);
 
@@ -77,7 +79,7 @@ int Init(ESContext *esContext)
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, p));
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, n));
+	glVertexAttribPointer(1, 3, GL_HALF_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, n));
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, t));
 
@@ -139,7 +141,7 @@ void Draw(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
 	light_t *light = userData->light;
-	scene_t *scene = userData->scene;
+	object_t *scene = userData->scene;
 
 	glViewport(0, 0, esContext->width, esContext->height);
 	glEnable(GL_DEPTH_TEST);

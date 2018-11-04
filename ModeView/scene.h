@@ -1,8 +1,8 @@
-#ifndef LOAD_FILE
-#define LOAD_FILE
+#ifndef SCENE_H
+#define SCENE_H
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 typedef struct {
 	float p[3];
@@ -11,19 +11,16 @@ typedef struct {
 } vertex_t;
 
 typedef struct {
-	vertex_t       *vertices;      // 顶点的索引
-	unsigned short *indices;	   // 面中顶点位置的索引，法线和贴图的索引和位置的索引相同
-	unsigned int    vertexCnt;     // 顶点的总数
-} scene_t;
+	vertex_t       *vertices;    
+	unsigned short *indices;	  
+	unsigned int    vertexCnt;     
+} object_t;
 
-//scene_t *LoadObject(char* filename);
-
-scene_t *LoadObject(const char* filename)	// 只能读取三角片面
+object_t* LoadObject(const char* filename)	// 只能读取三角片面
 {
-	// 打开文件
 	FILE* file;
 	fopen_s(&file, filename, "rt");
-	if (!file) return 0;
+	if (!file) return NULL;
 
 	// 第一次读取，统计顶点的总数、面的总数
 	char line[1000];
@@ -40,10 +37,10 @@ scene_t *LoadObject(const char* filename)	// 只能读取三角片面
 	}
 
 	// 分配存储空间
-	scene_t *scene = (scene_t*)malloc(sizeof(scene_t));
-	scene->indices = (unsigned short*)malloc(nf * 3 * sizeof(unsigned short));
-	scene->vertices = (vertex_t*)malloc(nf * 3 * sizeof(vertex_t));
-	scene->vertexCnt = 3 * nf;
+	object_t *object = (object_t*)malloc(sizeof(object_t));
+	object->indices = (unsigned short*)malloc(nf * 3 * sizeof(unsigned short));
+	object->vertices = (vertex_t*)malloc(nf * 3 * sizeof(vertex_t));
+	object->vertexCnt = 3 * nf;
 
 	// 第二次读取，存储顶点和面数据
 	float *position = (float*)malloc(np * 3 * sizeof(float));
@@ -89,27 +86,27 @@ scene_t *LoadObject(const char* filename)	// 只能读取三角片面
 		}
 
 		if (line[0] == 'f' && line[1] == ' ') {
-
 			// 重新排序索引
 			char *e1, *e2, *e3 = line + 1;
 			for (int i = 0; i < 3; i++) {
-				float *vp = (scene->vertices + iv)->p;
+				float *vp = (object->vertices + iv)->p;
 				int ivp = (int)strtoul(e3 + 1, &e1, 10) - 1;		// e + 1跳过‘\’
 				vp[0] = position[ivp * 3];
 				vp[1] = position[ivp * 3 + 1];
 				vp[2] = position[ivp * 3 + 2];
 
-				float *vt = (scene->vertices + iv)->t;
+				float *vt = (object->vertices + iv)->t;
 				int ivt = (int)strtoul(e1 + 1, &e2, 10) - 1;
 				vt[0] = texture[ivt * 2];
 				vt[1] = texture[ivt * 2 + 1];
 
-				float *vn = (scene->vertices + iv)->n;
+				float *vn = (object->vertices + iv)->n;
 				int ivn = (int)strtoul(e2 + 1, &e3, 10) - 1;
 				vn[0] = normal[ivn * 3];
 				vn[1] = normal[ivn * 3 + 1];
 				vn[2] = normal[ivn * 3 + 2];
-				*(scene->indices + iv) = (unsigned short)iv;	  // indices的索引
+
+				*(object->indices + iv) = (unsigned short)iv;	  // indices的索引
 				iv++;
 			}
 			continue;
@@ -122,7 +119,42 @@ scene_t *LoadObject(const char* filename)	// 只能读取三角片面
 	free(texture);
 	fclose(file);
 
-	return scene;
+	return object;
 }
+
+class Object
+{
+public:
+	GLuint vao;
+	GLuint vbo, ibo;
+public:
+	Object() {}
+	void CreateObject(const char* filename)
+	{
+		object_t* obj = LoadObject(filename);
+
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, obj->vertexCnt * sizeof(vertex_t), obj->vertices, GL_STATIC_DRAW);
+		glGenBuffers(1, &ibo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, obj->vertexCnt * sizeof(unsigned short), obj->indices, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, p));
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_HALF_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, n));
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 2, GL_HALF_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, t));
+		glBindVertexArray(0);
+	}
+	int CreateProgram()
+	{
+
+	}
+};
 
 #endif
