@@ -1,23 +1,9 @@
-#ifndef MATH_H
-#define MATH_H
+// copy  《3D数学基础：图形与游戏开发》
+
+#ifndef VECTOR3_H
+#define VECTOR3_H
 
 #include <cmath>
-
-class Vector2 
-{
-public:
-	float x, y;
-public:
-	Vector2()                   { x = 0.0; y = 0.0; }
-	Vector2(float nx)           { x = nx;  y = nx; }
-	Vector2(float nx, float ny) { x = nx;  y = ny; }
-
-	Vector2 operator+(const Vector2& add) const { return Vector2(this->x + add.x, this->y + add.y); }
-	Vector2 operator-(const Vector2& sub) const { return Vector2(this->x - sub.x, this->y - sub.y); }
-	Vector2 operator*(const Vector2& mul) const { return Vector2(this->x * mul.x, this->y * mul.y); }
-
-	float dot(Vector2 a, Vector2 b){ return (a.x*b.x + a.y*b.y); }
-};
 
 class Vector3
 {
@@ -89,33 +75,34 @@ public:
 	}
 };
 
-class Vector4
-{
-public:
-	float x, y, z, w;
-	Vector3 xyz;
-public:
-	Vector4(float nx, float ny, float nz, float nw)
-	{
-		x = nx; y = ny; z = nz; w = nw;
-		xyz = Vector3(nx, ny, nz);
-	}
-	Vector4(Vector3 a, float nw)
-	{
-		x = a.x; y = a.y; z = a.z;
-		xyz = a;
-	}
-};
+// 向量求模
+inline float vectorMag(const Vector3 &a) {
+	return sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+}
+// 计算两向量的点乘
+inline float dot(const Vector3 &a, const Vector3 &b) {
+	return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+// 计算两向量的叉乘
+inline Vector3 cross(const Vector3 &a, const Vector3 &b) {
+	return Vector3(
+		a.y*b.z - a.z*b.y,
+		a.z*b.x - a.x*b.z,
+		a.x*b.y - a.y*b.x
+	);
+}
+// 实现标量左乘
+inline Vector3 operator *(float k, const Vector3 &a) {
+	return Vector3(k*a.x, k*a.y, k*a.z);
+}
+// 计算两点间的距离
+inline float distance(const Vector3 &a, const Vector3 &b) {
+	float dx = a.x - b.x;
+	float dy = a.y - b.y;
+	float dz = a.z - b.z;
+	return sqrt(dx*dx + dy * dy + dz * dz);
+}
 
-class Matrix
-{
-public:
-	float m[4][4];
-public:
-	Vector4 operator*(const Vector4& vec4)
-	{
-
-	}
-};
-
+// 提供一个全局零向量
+extern const Vector3 ZeroVector3;
 #endif

@@ -4,7 +4,6 @@
 
 #include "esUtil.h"
 #include "scene.h"
-#include "Math.h"
 
 extern "C" {int esMain(ESContext *esContext);}
 
