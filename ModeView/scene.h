@@ -16,11 +16,11 @@ typedef struct {
 	unsigned int    vertexCnt;     
 } object_t;
 
-object_t* LoadObject(const char* filename)	// 只能读取三角片面
+int LoadObject(const char* filename, object_t **obj)	// 只能读取三角片面
 {
 	FILE* file;
 	fopen_s(&file, filename, "rt");
-	if (!file) return NULL;
+	if (!file) return FALSE;
 
 	// 第一次读取，统计顶点的总数、面的总数
 	char line[1000];
@@ -37,7 +37,8 @@ object_t* LoadObject(const char* filename)	// 只能读取三角片面
 	}
 
 	// 分配存储空间
-	object_t *object = (object_t*)malloc(sizeof(object_t));
+	*obj = (object_t*)malloc(sizeof(object_t));
+	object_t *object = *obj;
 	object->indices = (unsigned short*)malloc(nf * 3 * sizeof(unsigned short));
 	object->vertices = (vertex_t*)malloc(nf * 3 * sizeof(vertex_t));
 	object->vertexCnt = 3 * nf;
@@ -119,19 +120,23 @@ object_t* LoadObject(const char* filename)	// 只能读取三角片面
 	free(texture);
 	fclose(file);
 
-	return object;
+	return TRUE;
 }
 
 class Object
 {
 public:
-	GLuint vao;
-	GLuint vbo, ibo;
+	GLuint program;
+	GLuint vao, vbo, ibo;
+	object_t *obj;
 public:
 	Object() {}
-	void CreateObject(const char* filename)
+	int CreateObject(const char* filename)
 	{
-		object_t* obj = LoadObject(filename);
+		if (!LoadObject(filename, &obj)) {
+			fprintf(stderr, "Error loading file!\n");
+			return 0;
+		}
 
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
@@ -151,9 +156,75 @@ public:
 		glVertexAttribPointer(2, 2, GL_HALF_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, t));
 		glBindVertexArray(0);
 	}
-	int CreateProgram()
+
+	int CreateProgram(const char *vs, const char *fs)
+	{
+		program = esLoadProgram(vs, fs);
+		//program = glCreateProgram();
+		//if (!program) return 0;
+
+		//GLuint vertexShader = LoadShader(GL_VERTEX_SHADER, vs);
+		//GLuint fragmentShader = LoadShader(GL_FRAGMENT_SHADER, fs);
+		//glAttachShader(program, vertexShader);
+		//glAttachShader(program, fragmentShader);
+
+		//GLint linked;
+		//glLinkProgram(program);								// Link the program
+		//glGetProgramiv(program, GL_LINK_STATUS, &linked);	// Check the link status
+		//if (!linked)
+		//{
+		//	GLint infoLen = 0;
+		//	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLen);
+		//	if (infoLen > 1)
+		//	{
+		//		char *infoLog = (char*)malloc(sizeof(char) * infoLen);
+		//		glGetProgramInfoLog(program, infoLen, NULL, infoLog);
+		//		esLogMessage("Error linking program:\n%s\n", infoLog);
+		//		free(infoLog);
+		//	}
+		//	glDeleteProgram(program);
+		//	return FALSE;
+		//}
+
+		return TRUE;
+	}
+
+	void InitShadowMap()
 	{
 
+	}
+
+private:
+	GLuint LoadShader(GLenum type, const char *shaderSrc)
+	{
+		GLuint shader;
+		GLint compiled;
+
+		// Create the shader object
+		shader = glCreateShader(type);
+		if (shader == 0) return 0;
+
+		// Load the shader source
+		glShaderSource(shader, 1, &shaderSrc, NULL);
+		// compile the shader
+		glCompileShader(shader);
+		// check the compile status
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+		if (!compiled)
+		{
+			GLint infoLen = 0;
+			glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
+			if (!(infoLen > 1))
+			{
+				char *infoLog = (char*)malloc(sizeof(char) * infoLen);
+				glGetShaderInfoLog(shader, infoLen, NULL, infoLog);
+				esLogMessage("Error compiling shader:\n%s\n", infoLog);
+				free(infoLog);
+			}
+			glDeleteShader(shader);
+			return 0;
+		}
+		return shader;
 	}
 };
 

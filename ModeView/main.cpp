@@ -1,5 +1,6 @@
 #include <cstring>
 #include <cstdlib>
+#include <iostream>
 
 #include "esUtil.h"
 #include "scene.h"
@@ -14,14 +15,11 @@ typedef struct {
 } light_t;
 
 typedef struct {
-	GLuint program;
-	GLuint vao;
-	GLuint vbo[2];
+	Object *teapot;
 
 	GLint u_mvpMatrix;
 
 	light_t *light;
-	object_t *scene;
 
 	// shadowmap
 	GLuint shadowProgram;
@@ -44,7 +42,7 @@ ESMatrix GetMatrix(ESContext *esContext)
 	ESMatrix model, view, projection;
 	ESMatrix modelview, mvpMatrix;
 
-	float aspect = esContext->width / esContext->height;
+	float aspect = (float)(esContext->width / esContext->height);
 	esMatrixLoadIdentity(&projection);
 	esPerspective(&projection, 60.0f, aspect, 1.0f, 100.0f);
 
@@ -64,24 +62,6 @@ ESMatrix GetMatrix(ESContext *esContext)
 int Init(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
-
-	const char *filename = "text.obj";
-	object_t *scene = LoadObject(filename);
-	glGenVertexArrays(1, &userData->vao);
-	glBindVertexArray(userData->vao);
-
-	glGenBuffers(2, userData->vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, userData->vbo[0]);
-	glBufferData(GL_ARRAY_BUFFER, scene->vertexCnt * sizeof(vertex_t), scene->vertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, userData->vbo[1]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, scene->vertexCnt * sizeof(unsigned short), scene->indices, GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, p));
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_HALF_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, n));
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, t));
 
 	const char *vs =
 		"#version 300 es\n"
@@ -118,19 +98,16 @@ int Init(ESContext *esContext)
 		"    o_color = vec4(_AmbientColor + albedo, 1.0f);\n"
 		"}\n";
 
-	GLuint program = esLoadProgram(vs, fs);
-	if (!program) {
-		fprintf(stderr, "Error loading shader!\n");
-		return GL_FALSE;
-	}
+	const char *filename = "C:\\Users\\lang\\Desktop\\text.obj";
+	userData->teapot = (Object*)calloc(1, sizeof(Object));
+	Object *teapot = userData->teapot;
+	teapot->CreateObject(filename);
+	teapot->CreateProgram(vs, fs);
 	light_t *light = (light_t*)malloc(sizeof(light_t));
-	light->u_AmbientColor = glGetUniformLocation(program, "_AmbientColor");
-	light->u_LightColor = glGetUniformLocation(program, "_LightColor");
-	light->u_LightDir = glGetUniformLocation(program, "_LightDir");
-	userData->u_mvpMatrix = glGetUniformLocation(program, "u_mvpMatrix");
-
-	userData->scene = scene;
-	userData->program = program;
+	light->u_AmbientColor = glGetUniformLocation(teapot->program, "_AmbientColor");
+	light->u_LightColor = glGetUniformLocation(teapot->program, "_LightColor");
+	light->u_LightDir = glGetUniformLocation(teapot->program, "_LightDir");
+	userData->u_mvpMatrix = glGetUniformLocation(teapot->program, "u_mvpMatrix");
 	userData->light = light;
 
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -141,7 +118,7 @@ void Draw(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
 	light_t *light = userData->light;
-	object_t *scene = userData->scene;
+	Object *teapot = userData->teapot;
 
 	glViewport(0, 0, esContext->width, esContext->height);
 	glEnable(GL_DEPTH_TEST);
@@ -151,14 +128,14 @@ void Draw(ESContext *esContext)
 	static float lightColor[3] = { 0.8f, 0.8f, 0.8f };
 	static float lightDir[3] = { 1.0f, 2.0f, 0.0f };
 
-	glUseProgram(userData->program);
+	glUseProgram(teapot->program);
 	glUniform3fv(light->u_AmbientColor, 1, ambientColor);
 	glUniform3fv(light->u_LightColor, 1, lightColor);
 	glUniform3fv(light->u_LightDir, 1, lightDir);
 	glUniformMatrix4fv(userData->u_mvpMatrix, 1, GL_FALSE, &GetMatrix(esContext).m[0][0]);
 
-	glBindVertexArray(userData->vao);
-	glDrawElements(GL_TRIANGLES, scene->vertexCnt, GL_UNSIGNED_SHORT, (void*)0);
+	glBindVertexArray(teapot->vao);
+	glDrawElements(GL_TRIANGLES, teapot->obj->vertexCnt, GL_UNSIGNED_SHORT, (void*)0);
 }
 
 void KeyInput(ESContext *esContext, unsigned char key, int x, int y)
@@ -177,8 +154,10 @@ void Update(ESContext *esContext, float a)
 void Shutdown(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
-	glDeleteProgram(userData->program);
-	glDeleteBuffers(2, userData->vbo);
+	Object *teapot = userData->teapot;
+	glDeleteProgram(teapot->program);
+	glDeleteBuffers(1, &teapot->vbo);
+	glDeleteBuffers(1, &teapot->ibo);
 }
 
 int esMain(ESContext *esContext)
