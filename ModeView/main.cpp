@@ -48,7 +48,7 @@ ESMatrix GetMatrix(ESContext *esContext)
 
 	esMatrixLoadIdentity(&model);
 	esTranslate(&model, tx, 0.0f, 0.0f);
-	esScale(&model, 1.0f, 1.0f, 1.0f);
+	esScale(&model, 10.0f, 10.0f, 10.0f);
 	esRotate(&model, angle, 0.0, 1.0f, 0.0);
 
 	esMatrixLookAt(&view, 0.0f, 0.0f, 50.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
@@ -118,7 +118,7 @@ void Draw(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
 	light_t *light = userData->light;
-	Object *teapot = userData->teapot;
+	Object teapot = *userData->teapot;
 
 	glViewport(0, 0, esContext->width, esContext->height);
 	glEnable(GL_DEPTH_TEST);
@@ -128,14 +128,13 @@ void Draw(ESContext *esContext)
 	static float lightColor[3] = { 0.8f, 0.8f, 0.8f };
 	static float lightDir[3] = { 1.0f, 2.0f, 0.0f };
 
-	glUseProgram(teapot->program);
+	glUseProgram(teapot.program);
 	glUniform3fv(light->u_AmbientColor, 1, ambientColor);
 	glUniform3fv(light->u_LightColor, 1, lightColor);
 	glUniform3fv(light->u_LightDir, 1, lightDir);
 	glUniformMatrix4fv(userData->u_mvpMatrix, 1, GL_FALSE, &GetMatrix(esContext).m[0][0]);
 
-	glBindVertexArray(teapot->vao);
-	glDrawElements(GL_TRIANGLES, teapot->obj->vertexCnt, GL_UNSIGNED_SHORT, (void*)0);
+	teapot.DrawObject();
 }
 
 void KeyInput(ESContext *esContext, unsigned char key, int x, int y)
@@ -154,10 +153,8 @@ void Update(ESContext *esContext, float a)
 void Shutdown(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
-	Object *teapot = userData->teapot;
-	glDeleteProgram(teapot->program);
-	glDeleteBuffers(1, &teapot->vbo);
-	glDeleteBuffers(1, &teapot->ibo);
+	Object teapot = *userData->teapot;
+	teapot.Destroy();
 }
 
 int esMain(ESContext *esContext)

@@ -107,7 +107,8 @@ int LoadObject(const char* filename, object_t **obj)	// 只能读取三角片面
 				vn[1] = normal[ivn * 3 + 1];
 				vn[2] = normal[ivn * 3 + 2];
 
-				*(object->indices + iv) = (unsigned short)iv;	  // indices的索引
+				// indices的索引
+				*(object->indices + iv) = (unsigned short)iv;	  
 				iv++;
 			}
 			continue;
@@ -127,15 +128,26 @@ class Object
 {
 public:
 	GLuint program;
+	ESMatrix model;
+private:
+	// Program
 	GLuint vao, vbo, ibo;
+	GLuint vs, fs;
 	object_t *obj;
+
+	// Matrix
+	float tx, ty, tz;
+	float sx, sy, sz;
+	float rx, ry, rz;
 public:
 	Object() {}
+
+	// Object
 	int CreateObject(const char* filename)
 	{
 		if (!LoadObject(filename, &obj)) {
 			fprintf(stderr, "Error loading file!\n");
-			return 0;
+			return FALSE;
 		}
 
 		glGenVertexArrays(1, &vao);
@@ -151,50 +163,93 @@ public:
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, p));
 		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_HALF_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, n));
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, n));
 		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_HALF_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, t));
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*)offsetof(vertex_t, t));
 		glBindVertexArray(0);
+
+		free(obj->indices);
+		free(obj->vertices);
+		free(obj);
+
+		esMatrixLoadIdentity(&model);
+		esTranslate(&model, tx, ty, tz);
+		esScale(&model, sx, sy, sz);
+		esRotate(&model, rx, 1.0f, 0.0f, 0.0f);
+		esRotate(&model, ry, 0.0f, 1.0f, 0.0f);
+		esRotate(&model, rz, 0.0f, 0.0f, 1.0f);
+		return TRUE;
 	}
 
-	int CreateProgram(const char *vs, const char *fs)
+	// Matrix
+	void Translate(float x, float y, float z) {
+		tx = x; ty = y; tz = z;
+	}
+	void Scale(float x, float y, float z) {
+		sx = x; sy = y; sz = z;
+	}
+	void Rotate(float angleX, float angleY, float angleZ) {
+		rx = angleX; ry = angleY; rz = angleZ;
+	}
+
+	// Program
+	int CreateProgram(const char *vStr, const char *fStr)
 	{
-		program = esLoadProgram(vs, fs);
-		//program = glCreateProgram();
-		//if (!program) return 0;
+		//program = esLoadProgram(vs, fs);
+		program = glCreateProgram();
+		if (!program) return 0;
 
-		//GLuint vertexShader = LoadShader(GL_VERTEX_SHADER, vs);
-		//GLuint fragmentShader = LoadShader(GL_FRAGMENT_SHADER, fs);
-		//glAttachShader(program, vertexShader);
-		//glAttachShader(program, fragmentShader);
+		vs = LoadShader(GL_VERTEX_SHADER, vStr);
+		fs = LoadShader(GL_FRAGMENT_SHADER, fStr);
+		glAttachShader(program, vs);
+		glAttachShader(program, fs);
 
-		//GLint linked;
-		//glLinkProgram(program);								// Link the program
-		//glGetProgramiv(program, GL_LINK_STATUS, &linked);	// Check the link status
-		//if (!linked)
-		//{
-		//	GLint infoLen = 0;
-		//	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLen);
-		//	if (infoLen > 1)
-		//	{
-		//		char *infoLog = (char*)malloc(sizeof(char) * infoLen);
-		//		glGetProgramInfoLog(program, infoLen, NULL, infoLog);
-		//		esLogMessage("Error linking program:\n%s\n", infoLog);
-		//		free(infoLog);
-		//	}
-		//	glDeleteProgram(program);
-		//	return FALSE;
-		//}
+		GLint linked;
+		glLinkProgram(program);								// Link the program
+		glGetProgramiv(program, GL_LINK_STATUS, &linked);	// Check the link status
+		if (!linked)
+		{
+			GLint infoLen = 0;
+			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLen);
+			if (infoLen > 1)
+			{
+				char *infoLog = (char*)malloc(sizeof(char) * infoLen);
+				glGetProgramInfoLog(program, infoLen, NULL, infoLog);
+				esLogMessage("Error linking program:\n%s\n", infoLog);
+				free(infoLog);
+			}
+			glDeleteProgram(program);
+			return FALSE;
+		}
 
 		return TRUE;
 	}
+
+	void DrawObject()
+	{
+		glBindVertexArray(vao);
+		glDrawElements(GL_TRIANGLES, obj->vertexCnt, GL_UNSIGNED_SHORT, (void*)0);
+		glBindVertexArray(0);
+	}
+
+	
 
 	void InitShadowMap()
 	{
 
 	}
 
+	void Destroy()
+	{
+		glDeleteProgram(program);
+		glDeleteBuffers(1, &vbo);
+		glDeleteBuffers(1, &ibo);
+		glDeleteShader(vs);
+		glDeleteShader(fs);
+	}
+
 private:
+	// Shader
 	GLuint LoadShader(GLenum type, const char *shaderSrc)
 	{
 		GLuint shader;
