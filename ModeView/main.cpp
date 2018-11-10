@@ -5,6 +5,7 @@
 #include "esUtil.h"
 #include "scene.h"
 
+
 extern "C" {int esMain(ESContext *esContext);}
 
 typedef struct {
@@ -15,10 +16,11 @@ typedef struct {
 
 typedef struct {
 	Object *teapot;
+	light_t *light;
+
+	GLuint vao;
 
 	GLint u_mvpMatrix;
-
-	light_t *light;
 
 	// shadowmap
 	GLuint shadowProgram;
@@ -61,6 +63,10 @@ ESMatrix GetMatrix(ESContext *esContext)
 int Init(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
+	userData->teapot = (Object*)malloc(sizeof(Object));
+	userData->light = (light_t*)malloc(sizeof(light_t));
+	glGenVertexArrays(1, &userData->vao);
+	glBindVertexArray(userData->vao);
 
 	const char *vs =
 		"#version 300 es\n"
@@ -97,17 +103,15 @@ int Init(ESContext *esContext)
 		"    o_color = vec4(_AmbientColor + albedo, 1.0f);\n"
 		"}\n";
 
-	const char *filename = "C:\\Users\\lang\\Desktop\\text.obj";
-	userData->teapot = (Object*)calloc(1, sizeof(Object));
-	Object *teapot = userData->teapot;
-	teapot->CreateObject(filename);
-	teapot->CreateProgram(vs, fs);
-	light_t *light = (light_t*)malloc(sizeof(light_t));
-	light->u_AmbientColor = glGetUniformLocation(teapot->program, "_AmbientColor");
-	light->u_LightColor = glGetUniformLocation(teapot->program, "_LightColor");
-	light->u_LightDir = glGetUniformLocation(teapot->program, "_LightDir");
-	userData->u_mvpMatrix = glGetUniformLocation(teapot->program, "u_mvpMatrix");
-	userData->light = light;
+	Object teapot = *userData->teapot;
+	teapot.CreateObject("C:\\Users\\lang\\Desktop\\text.obj");
+	teapot.CreateProgram(vs, fs);
+
+	light_t light = *userData->light;
+	light.u_AmbientColor = glGetUniformLocation(teapot.program, "_AmbientColor");
+	light.u_LightColor = glGetUniformLocation(teapot.program, "_LightColor");
+	light.u_LightDir = glGetUniformLocation(teapot.program, "_LightDir");
+	userData->u_mvpMatrix = glGetUniformLocation(teapot.program, "u_mvpMatrix");
 
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	return GL_TRUE;
