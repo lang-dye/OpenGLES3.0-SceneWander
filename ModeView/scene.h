@@ -8,9 +8,17 @@ GLint u_mvpMatrix;		// mvpMatrix的location
 
 class Scene
 {
+public:
+	GLuint program;
 private:
-	GLuint program, vao;
+	GLuint vao;
 	GLuint vs, fs;
+
+	ESMatrix view, projection;
+	float fovy, aspect;		// 视角
+	float cx, cy, cz;		// 摄像机位置
+	float lx, ly, lz;		// look at point
+	float ux, uy, uz;		// 摄像机的上方向量
 public:
 	Scene(){}
 
@@ -56,19 +64,27 @@ public:
 	}
 
 	// 说明 绑定顶点数组对象，必须和SceneEnd配置使用，用于创建物体
-	void SceneCreate() {
+	void SceneCreate(float angle, float wRatioh, float cameraX, float cameraY, float cameraZ, float lookAtX, float lookAtY, float lookAtZ, float upX, float upY, float upZ) {
 		glBindVertexArray(vao);
+		cx = cameraX; cy = cameraY; cz = cameraZ;
+		lx = lookAtX; ly = lookAtY; lz = lookAtZ;
+		ux = upX;     uy = upY;     uz = upZ;
+		fovy = angle, aspect = wRatioh;
 	}
 	// 说明 绑定顶点数组对象，设置sceneMatrix,必须和SceneEnd()配合使用，用于绘画物体
 	void SceneDraw() {
 		glBindVertexArray(vao);
+		// 设置sceneMatrix
+		esMatrixLoadIdentity(&projection);
+		esPerspective(&projection, fovy, aspect, 0.01f, 1000.0f);
+		esMatrixLoadIdentity(&view);
+		esMatrixLookAt(&view, cx, cy, cz, lx, ly, lz, ux, uy, uz);
+		esMatrixMultiply(&sceneMatrix, &projection, &view);
 	}
 	// 说明 解绑顶点数组对象
 	void SceneEnd() {
 		glBindVertexArray(0);
 	}
-
-	void LookAt(); 
 
 private:
 	// Shader

@@ -143,17 +143,17 @@ public:
 
 	// Matrix
 	void Translate(float x, float y, float z) {
-		tx = x; ty = y; tz = z;
+		tx += x; ty += y; tz += z;
 	}
 	void Scale(float x, float y, float z) {
 		sx = x; sy = y; sz = z;
 	}
 	void Rotate(float angleX, float angleY, float angleZ) {
-		rx = angleX; ry = angleY; rz = angleZ;
+		rx += angleX; ry += angleY; rz += angleZ;
 	}
 
 	// Object
-	int CreateObject(const char* filename)
+	int CreateObject(const char* filename, float ntx, float nty, float ntz, float nsx, float nsy, float nsz, float angleX, float angleY, float angleZ)
 	{
 		if (!LoadObject(filename, &obj)) {
 			fprintf(stderr, "Error loading file!\n");
@@ -171,9 +171,9 @@ public:
 		free(obj->indices);
 		free(obj);
 
-		tx = 0.0f; ty = 0.0f; tz = 0.0f;
-		sx = 1.0f; sy = 1.0f; sz = 1.0f;
-		rx = 0.0f; ry = 0.0f; rz = 0.0f;
+		tx = ntx; ty = nty; tz = ntz;
+		sx = nsx; sy = nsy; sz = nsz;
+		rx = angleX; ry = angleY; rz = angleZ;
 		return TRUE;
 	}
 

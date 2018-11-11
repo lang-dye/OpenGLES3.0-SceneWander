@@ -15,58 +15,19 @@ typedef struct {
 } light_t;
 
 typedef struct {
+	Scene *scene;
 	Object *teapot;
 	light_t *light;
-
-	GLuint vao;
-
-	GLint u_mvpMatrix;
-
-	// shadowmap
-	GLuint shadowProgram;
-	GLuint shadowFb;
-	GLuint shadowTex;
 } UserData;
-
-
-
-GLfloat tx = 0.0f, ty = 0.0f, tz = 0.0f;
-GLfloat sx = 1.0f, sy = 1.0f, sz = 1.0f;
-GLfloat angle = 0.0f, x = 0.0f, y = 0.0f, z = 0.0f;
-float posX = 0.0f, posY = 0.0f, posZ = 500.0f;
-float lookAtX = 0.0f, lookAtY = 0.0f, lookAtZ = 1.0f;
-float upX = 0.0f, upY = 1.0f, upZ = 0.0f;
-
-ESMatrix GetMatrix(ESContext *esContext)
-{
-	UserData *userData = (UserData*)esContext->userData;
-	ESMatrix model, view, projection;
-	ESMatrix modelview, mvpMatrix;
-
-	float aspect = (float)(esContext->width / esContext->height);
-	esMatrixLoadIdentity(&projection);
-	esPerspective(&projection, 60.0f, aspect, 1.0f, 100.0f);
-
-	esMatrixLoadIdentity(&model);
-	esTranslate(&model, tx, 0.0f, 0.0f);
-	esScale(&model, 10.0f, 10.0f, 10.0f);
-	esRotate(&model, angle, 0.0, 1.0f, 0.0);
-
-	esMatrixLookAt(&view, 0.0f, 0.0f, 50.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
-
-	esMatrixMultiply(&modelview, &model, &view);
-	esMatrixMultiply(&mvpMatrix, &modelview, &projection);
-
-	return mvpMatrix;
-}
 
 int Init(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
+	userData->scene = (Scene*)malloc(sizeof(Scene));
 	userData->teapot = (Object*)malloc(sizeof(Object));
 	userData->light = (light_t*)malloc(sizeof(light_t));
-	glGenVertexArrays(1, &userData->vao);
-	glBindVertexArray(userData->vao);
+	const char *filename = "C:\\Users\\lang\\Desktop\\text.obj";
+	float aspect = esContext->width / esContext->height;
 
 	const char *vs =
 		"#version 300 es\n"
@@ -103,15 +64,18 @@ int Init(ESContext *esContext)
 		"    o_color = vec4(_AmbientColor + albedo, 1.0f);\n"
 		"}\n";
 
+	Scene scene = *userData->scene;
 	Object teapot = *userData->teapot;
-	teapot.CreateObject("C:\\Users\\lang\\Desktop\\text.obj");
-	teapot.CreateProgram(vs, fs);
+	scene.CreateProgram(vs, fs, "u_mvpMatrix");
+
+	scene.SceneCreate(60.0f, aspect, 0.0f, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	teapot.CreateObject(filename, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f);
+	scene.SceneEnd();
 
 	light_t light = *userData->light;
-	light.u_AmbientColor = glGetUniformLocation(teapot.program, "_AmbientColor");
-	light.u_LightColor = glGetUniformLocation(teapot.program, "_LightColor");
-	light.u_LightDir = glGetUniformLocation(teapot.program, "_LightDir");
-	userData->u_mvpMatrix = glGetUniformLocation(teapot.program, "u_mvpMatrix");
+	light.u_AmbientColor = glGetUniformLocation(scene.program, "_AmbientColor");
+	light.u_LightColor = glGetUniformLocation(scene.program, "_LightColor");
+	light.u_LightDir = glGetUniformLocation(scene.program, "_LightDir");
 
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	return GL_TRUE;
