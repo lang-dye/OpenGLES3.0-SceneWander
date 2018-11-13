@@ -4,6 +4,8 @@
 
 #include "esUtil.h"
 #include "scene.h"
+#include "object.h"
+#include "camera.h"
 
 
 extern "C" {int esMain(ESContext *esContext);}
@@ -27,7 +29,7 @@ int Init(ESContext *esContext)
 	userData->teapot = (Object*)malloc(sizeof(Object));
 	userData->light = (light_t*)malloc(sizeof(light_t));
 	const char *filename = "C:\\Users\\lang\\Desktop\\text.obj";
-	float aspect = esContext->width / esContext->height;
+	float aspect = (float)esContext->width / (float)esContext->height;
 
 	const char *vs =
 		"#version 300 es\n"
@@ -66,8 +68,9 @@ int Init(ESContext *esContext)
 
 	Scene scene = *userData->scene;
 	Object teapot = *userData->teapot;
-	scene.CreateProgram(vs, fs, "u_mvpMatrix");
 
+	scene.CreateProgram(vs, fs);
+	// ´´½¨³¡¾°
 	scene.SceneCreate(60.0f, aspect, 0.0f, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 	teapot.CreateObject(filename, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f);
 	scene.SceneEnd();
@@ -76,6 +79,7 @@ int Init(ESContext *esContext)
 	light.u_AmbientColor = glGetUniformLocation(scene.program, "_AmbientColor");
 	light.u_LightColor = glGetUniformLocation(scene.program, "_LightColor");
 	light.u_LightDir = glGetUniformLocation(scene.program, "_LightDir");
+	scene.u_mvpMatrix = glGetUniformLocation(scene.program, "u_mvpMatrix");
 
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	return GL_TRUE;
@@ -86,6 +90,7 @@ void Draw(ESContext *esContext)
 	UserData *userData = (UserData*)esContext->userData;
 	light_t *light = userData->light;
 	Object teapot = *userData->teapot;
+	Scene scene = *userData->scene;
 
 	glViewport(0, 0, esContext->width, esContext->height);
 	glEnable(GL_DEPTH_TEST);
@@ -95,21 +100,19 @@ void Draw(ESContext *esContext)
 	static float lightColor[3] = { 0.8f, 0.8f, 0.8f };
 	static float lightDir[3] = { 1.0f, 2.0f, 0.0f };
 
-	glUseProgram(teapot.program);
+	glUseProgram(scene.program);
 	glUniform3fv(light->u_AmbientColor, 1, ambientColor);
 	glUniform3fv(light->u_LightColor, 1, lightColor);
 	glUniform3fv(light->u_LightDir, 1, lightDir);
-	glUniformMatrix4fv(userData->u_mvpMatrix, 1, GL_FALSE, &GetMatrix(esContext).m[0][0]);
 
-	teapot.DrawObject();
+	scene.SceneDraw();
+	teapot.DrawObject(&scene.sceneMatrix, scene.u_mvpMatrix);
+	scene.SceneEnd();
 }
 
 void KeyInput(ESContext *esContext, unsigned char key, int x, int y)
 {
-	if (key == 'a') angle -= 5.0f;
-	if (key == 'd') angle += 5.0f;
-	if (key == 'z') tx += 10.0f;
-	if (key == 'x') tx -= 10.0f;
+
 }
 
 void Update(ESContext *esContext, float a)
@@ -121,7 +124,9 @@ void Shutdown(ESContext *esContext)
 {
 	UserData *userData = (UserData*)esContext->userData;
 	Object teapot = *userData->teapot;
-	teapot.Destroy();
+	Scene scene = *userData->scene;
+	teapot.DestroyObject();
+	scene.SceneDestroy();
 }
 
 int esMain(ESContext *esContext)
